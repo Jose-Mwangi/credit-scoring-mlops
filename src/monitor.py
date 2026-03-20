@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
+import json
 import mlflow.sklearn
 from evidently import Report
 from evidently.presets import DataDriftPreset
@@ -30,14 +31,17 @@ def run_monitoring():
         reference_data=reference_df.drop(columns=["default", "prediction"]),
         current_data=current_df.drop(columns=["default", "prediction"]),
     )
-    report.save_html("outputs/monitoring/drift_report.html")
-    print("Saved: outputs/monitoring/drift_report.html")
-    result = report.as_dict()
-    drifted = result["metrics"][0]["result"]
+    results = []
+    for m in report.metrics:
+        metric_name = type(m).__name__
+        metric_json = json.loads(m.json())
+        results.append({"metric": metric_name, "data": metric_json})
+        print(f"  {metric_name}: {metric_json}")
+    with open("outputs/monitoring/drift_report.json", "w") as f:
+        json.dump(results, f, indent=2)
     print("\n=== Drift Monitoring Summary ===")
-    print(f"  Drifted columns : {drifted.get('count', 0)} / {drifted.get('total', 0)}")
-    print(f"  Share drifted   : {round(drifted.get('share', 0) * 100, 1)}%")
-    print(f"  Report saved to : outputs/monitoring/drift_report.html")
+    print(f"  {len(results)} metrics computed")
+    print(f"  Saved: outputs/monitoring/drift_report.json")
 
 if __name__ == "__main__":
     run_monitoring()
